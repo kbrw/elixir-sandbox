@@ -27,7 +27,7 @@ defmodule Mix.Tasks.WorkerChunk do
       IO.puts @moduledoc
       nb_worker = 100
       workers = 1..nb_worker |> Enum.map(fn _-> {:ok,pid} = Agent.start_link(fn-> 0 end); pid end)
-      stream = File.stream!("sample_data.csv",[read_ahead: 1_000_000], :line)
+      res = File.stream!("sample_data.csv",[read_ahead: 1_000_000], :line)
       |> Stream.zip(Stream.cycle(workers))
       |> Stream.chunk(20000,20000)
       |> Stream.map(fn chunk->
@@ -39,6 +39,9 @@ defmodule Mix.Tasks.WorkerChunk do
         workers |> Enum.map(fn worker->Agent.get(worker, &(&1),:infinity) end) |> Enum.sum
       end)
       |> Enum.sum
+
+      Enum.each(workers,&Agent.stop/1)
+      res
     end) |> inspect |> IO.puts
   end
 end
@@ -78,7 +81,9 @@ defmodule Mix.Tasks.Worker do
           end)
         end)
 
-      workers |> Enum.map(fn worker->Agent.get(worker, &(&1),:infinity) end) |> Enum.sum
+      res = workers |> Enum.map(fn worker->Agent.get(worker, &(&1),:infinity) end) |> Enum.sum
+      Enum.each(workers,&Agent.stop/1)
+      res
     end) |> inspect |> IO.puts
   end
 end
